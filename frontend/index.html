@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MR UNKNOWN HOST</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { transition: background 0.5s, color 0.5s; }
+.neon-text { color: #0ff; text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff; }
+@keyframes neonGlow {
+  0%,100% { text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff; }
+  50% { text-shadow:0 0 10px #0ff,0 0 20px #0ff,0 0 30px #0ff; }
+}
+.neon-animate { animation: neonGlow 1.5s infinite alternate; }
+.neon-btn { color:#0ff; border:2px solid #0ff; text-shadow:0 0 5px #0ff; transition:all 0.3s ease; border-radius:0.5rem; padding:0.5rem 1rem; }
+.neon-btn:hover { box-shadow:0 0 10px #0ff,0 0 20px #0ff; background-color:#0ff1; }
+</style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col">
+
+<header class="flex justify-between items-center p-6">
+  <h1 class="text-4xl neon-text neon-animate font-bold">MR UNKNOWN HOST</h1>
+  <button id="themeToggle" class="neon-btn">Toggle Theme</button>
+</header>
+
+<main class="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6">
+
+  <!-- Login Section -->
+  <div id="loginSection">
+    <button id="loginBtn" class="neon-btn">Login with GitHub</button>
+  </div>
+
+  <!-- User Section -->
+  <div id="userSection" style="display:none;">
+    <h2 class="text-2xl neon-text neon-animate mb-4" id="userName"></h2>
+    <h3 class="text-xl mb-2">Select Repo to Deploy:</h3>
+    <ul id="repoList" class="space-y-2"></ul>
+    <div id="deployLog" class="mt-4 text-left w-full max-w-md bg-gray-900 p-4 rounded neon-text overflow-auto" style="max-height:200px;"></div>
+  </div>
+
+</main>
+
+<footer class="text-center p-4">© 2025 MR UNKNOWN</footer>
+
+<script>
+const themeToggle = document.getElementById("themeToggle");
+const loginBtn = document.getElementById("loginBtn");
+const loginSection = document.getElementById("loginSection");
+const userSection = document.getElementById("userSection");
+const userName = document.getElementById("userName");
+const repoList = document.getElementById("repoList");
+const deployLog = document.getElementById("deployLog");
+
+// Dark/Light theme toggle
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("bg-black");
+  document.body.classList.toggle("text-white");
+  document.body.classList.toggle("bg-white");
+  document.body.classList.toggle("text-black");
+});
+
+// GitHub OAuth Login
+loginBtn.addEventListener("click", () => {
+  window.location.href = "http://localhost:5000/auth/github";
+});
+
+// Check for token in URL
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+
+if(token){
+  loginSection.style.display = "none";
+  userSection.style.display = "block";
+
+  // Fetch user info
+  fetch("https://api.github.com/user", {
+    headers: { Authorization: `token ${token}` }
+  })
+  .then(r => r.json())
+  .then(data => { userName.textContent = `Welcome, ${data.login}`; });
+
+  // Fetch repos
+  fetch(`http://localhost:5000/repos?token=${token}`)
+  .then(r => r.json())
+  .then(repos => {
+    repoList.innerHTML = "";
+    repos.forEach(repo => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.className = "neon-btn";
+      btn.textContent = repo.name;
+      btn.addEventListener("click", () => deployRepo(repo));
+      li.appendChild(btn);
+      repoList.appendChild(li);
+    });
+  });
+}
+
+// Deploy repo
+function deployRepo(repo){
+  deployLog.innerHTML += `Deploying ${repo.name}...\n`;
+  fetch("http://localhost:5000/deploy", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ repoUrl: repo.html_url })
+  })
+  .then(r => r.json())
+  .then(data => {
+    deployLog.innerHTML += `Deployed! Live URL: ${data.url}\n`;
+    window.open(data.url,"_blank");
+    deployLog.scrollTop = deployLog.scrollHeight;
+  })
+  .catch(err => {
+    deployLog.innerHTML += `Deploy failed: ${err}\n`;
+  });
+}
+</script>
+
+</body>
+</html>
